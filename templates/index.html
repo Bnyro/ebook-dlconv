@@ -1,0 +1,8 @@
+{% extends "base.html" %} {% block content %}
+<h2><a href="/search">Search</a></h2>
+<hr />
+{% for file in files %}
+<a href="/dl/{{ file }}" download="{{ file }}">{{ file }}</a>
+<br />
+{% endfor %}
+{% endblock %}

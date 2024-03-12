@@ -1,0 +1,9 @@
+services:
+  ebook-dlconv:
+    container_name: ebook-dlconv
+    build: .
+    restart: unless-stopped
+    ports:
+      - 127.0.0.1:5000:5000
+    volumes:
+      - /data/ebook-dlconv:/app/output

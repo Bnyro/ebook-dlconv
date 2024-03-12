@@ -1,0 +1,24 @@
+{% extends "base.html" %} {% block content %}
+<form action="/search" method="get">
+  <select name="lang">
+    <option value="">All</option>
+    {% for lang in languages %}
+    <option value="{{ lang.code }}" {% if lang.code == default_lang %} selected {% endif %}>{{ lang.name }}</option>
+    {% endfor %}
+  </select>
+  <input
+    type="text"
+    name="q"
+    placeholder="Search"
+    value="{{ query }}"
+    required
+  />
+  <button type="submit">Search</button>
+</form>
+{% for result in results %}
+<h2>{{ result.title }}</h2>
+<p>{{ result.author }}</p>
+<p>{{ result.description }}</p>
+<a href="/download?id={{ result.id }}&title={{ result.title_query }}&ext={{ result.extension }}">Download</a>
+<hr />
+{% endfor %} {% endblock %}
