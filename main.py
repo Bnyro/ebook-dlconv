@@ -16,12 +16,13 @@ import threading
 HOUR_DELAY = 1
 TEMP_DIR = "./temp"
 OUTPUT_DIR = "./output"
-
+USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64; rv:123.0) Gecko/20100101 Firefox/123.0"
 
 base_url = "https://annas-archive.org"
 
 languages = [{'name': country.name, 'code': country.alpha_2.lower()} for country in pycountry.countries]
 languages.sort(key=lambda lang: lang['name'])
+headers = {'User-Agent': USER_AGENT}
 
 app = Flask(__name__)
 
@@ -57,7 +58,7 @@ def search():
         args['lang'] = lang
 
     url = f"{base_url}/search?{urlencode(args)}"
-    response = httpx.get(url)
+    response = httpx.get(url, headers=headers)
     if response.status_code != 200:
         return "Invalid response from Anna's Archive", 500
 
@@ -75,10 +76,10 @@ def download():
     if id is None:
         return "Query missing", 400
 
-    return Response(download_file(id, title, extension), mimetype="text/html")
+    return Response(start_download(id, title, extension), mimetype="text/html")
 
 
-def download_file(id, title, extension):
+def start_download(id, title, extension):
     yield f"<title>Downloading {title}</title>"
 
     yield "Extracting links... <br />"
@@ -89,30 +90,28 @@ def download_file(id, title, extension):
 
     yield "Links found... <br />"
     yield "Starting download... <br />"
+    yield "Continuing download on background... <br />"
 
-    r = httpx.get(download_link, timeout=20, follow_redirects=True)
+    dl_thread = threading.Thread(
+        target=download_file,
+        args=(
+            download_link,
+            title,
+            extension,
+        ),
+    )
+    dl_thread.start()
+
+
+def download_file(download_link, title, extension):
+    r = httpx.get(download_link, timeout=100, follow_redirects=True, headers=headers)
     temp_file = os.path.join(TEMP_DIR, f"{title}.{extension}")
     with open(temp_file, 'wb') as f:
         f.write(r.content)
 
-    yield "File downloaded... <br />"
-    yield "Converting via Calibre... <br />"
-
     out_file = os.path.join(OUTPUT_DIR, f"{title}.mobi")
-    p = subprocess.Popen(["/usr/bin/ebook-convert", temp_file, out_file], stdout=subprocess.PIPE)
-    while True:
-        raw_line = p.stdout.readline()
-        if not raw_line:
-            break
-        line = re.sub(r"b'|\\n'", "", str(raw_line))
-        if not line.startswith("Page") and not line.startswith("\\tDetected chapter"):
-            yield f"{line} <br />"
-
-    yield "Cleaning up temporary files... <br />"
+    p = subprocess.Popen(["/usr/bin/ebook-convert", temp_file, out_file], stdout=None)
     os.remove(temp_file)
-
-    yield "Done. <br />"
-    yield "<a href='/'>Go home</a>"
 
 
 def get_param(request, key):
@@ -151,7 +150,7 @@ def extract_download_link(id):
 
 
 def get_libgen_link(url: str, add_prefix: bool) -> str:
-    resp = httpx.get(url)
+    resp = httpx.get(url, headers=headers)
     if resp.status_code != 200:
         return None
 
