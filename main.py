@@ -121,7 +121,7 @@ def download_file(download_link, title, extension):
         f.write(r.content)
 
     out_file = os.path.join(OUTPUT_DIR, f"{title}.mobi")
-    p = subprocess.Popen(["/usr/bin/ebook-convert", temp_file, out_file], stdout=None)
+    subprocess.call(["/usr/bin/ebook-convert", temp_file, out_file])
     os.remove(temp_file)
 
 
