@@ -213,7 +213,7 @@ def extract_search_results(html_plain):
 
 def delete_old_outputs():
     for file in os.listdir(OUTPUT_DIR):
-        filestamp = os.stat(os.path.join(path, filename)).st_mtime
+        filestamp = os.stat(os.path.join(OUTPUT_DIR, file)).st_mtime
         if filestamp > HOUR_DELAY * 60 * 60 * 1000:
             os.remove(os.path.join(OUTPUT_DIR, file))
 
