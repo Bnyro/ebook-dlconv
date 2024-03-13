@@ -3,6 +3,6 @@
 <hr />
 {% for file in files %}
 <a href="/dl/{{ file }}" download="{{ file }}">{{ file }}</a>
+<a href="/delete/{{ file }}">Delete</a>
 <br />
-{% endfor %}
-{% endblock %}
+{% endfor %} {% endblock %}

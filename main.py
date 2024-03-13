@@ -1,4 +1,4 @@
-from flask import Flask, render_template, Response, request, send_from_directory
+from flask import Flask, render_template, Response, request, send_from_directory, redirect
 from urllib.parse import urlencode, quote_plus
 from lxml import html
 from lxml.etree import ElementBase, _ElementStringResult, _ElementUnicodeResult
@@ -44,6 +44,15 @@ def dl(name):
     return send_from_directory(OUTPUT_DIR, name, as_attachment=True)
 
 
+@app.route('/delete/<path:name>')
+def delete(name):
+    path = os.path.join(OUTPUT_DIR, name)
+    if os.path.exists(path):
+        os.remove(path)
+
+    return redirect("/")
+
+
 @app.route('/search', methods=["GET", "POST"])
 def search():
     query = get_param(request, "q")
@@ -86,11 +95,10 @@ def start_download(id, title, extension):
     download_link = extract_download_link(id)
     if download_link is None:
         yield "No links found, aborting! <br />"
+        yield "<a href='/'>Go Home</a>"
         return
 
     yield "Links found... <br />"
-    yield "Starting download... <br />"
-    yield "Continuing download on background... <br />"
 
     dl_thread = threading.Thread(
         target=download_file,
@@ -101,6 +109,9 @@ def start_download(id, title, extension):
         ),
     )
     dl_thread.start()
+
+    yield "Started download on background... <br />"
+    yield "<a href='/'>Go Home</a>"
 
 
 def download_file(download_link, title, extension):
