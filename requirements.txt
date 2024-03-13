@@ -1,0 +1,6 @@
+flask
+lxml
+urllib3
+pycountry
+gunicorn
+httpx
