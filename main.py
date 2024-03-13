@@ -13,10 +13,11 @@ import subprocess
 import re
 import threading
 
-HOUR_DELAY = 1
-TEMP_DIR = "./temp"
-OUTPUT_DIR = "./output"
-USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64; rv:123.0) Gecko/20100101 Firefox/123.0"
+FILE_LIFETIME_HOURS = int(os.environ["FILE_LIFETIME_HOURS"])
+OUTPUT_FORMAT = os.environ["OUTPUT_FORMAT"]
+TEMP_DIR = os.environ.get("TEMP_DIR")
+OUTPUT_DIR = os.environ.get("OUTPUT_DIR")
+USER_AGENT = os.environ.get("USER_AGENT")
 
 base_url = "https://annas-archive.org"
 
@@ -120,7 +121,7 @@ def download_file(download_link, title, extension):
     with open(temp_file, 'wb') as f:
         f.write(r.content)
 
-    out_file = os.path.join(OUTPUT_DIR, f"{title}.mobi")
+    out_file = os.path.join(OUTPUT_DIR, f"{title}.{OUTPUT_FORMAT}")
     subprocess.call(["/usr/bin/ebook-convert", temp_file, out_file])
     os.remove(temp_file)
 
@@ -224,7 +225,7 @@ def extract_search_results(html_plain):
 def delete_old_outputs():
     for file in os.listdir(OUTPUT_DIR):
         filestamp = os.stat(os.path.join(OUTPUT_DIR, file)).st_mtime
-        if filestamp > HOUR_DELAY * 60 * 60 * 1000:
+        if filestamp > FILE_LIFETIME_HOURS * 60 * 60 * 1000:
             os.remove(os.path.join(OUTPUT_DIR, file))
 
 
@@ -232,7 +233,7 @@ def deletion_worker():
     while True:
         delete_old_outputs()
 
-        dt = datetime.now() + timedelta(hours=HOUR_DELAY)
+        dt = datetime.now() + timedelta(hours=FILE_LIFETIME_HOURS)
 
         while datetime.now() < dt:
             time.sleep(1)
