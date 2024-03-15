@@ -1,4 +1,11 @@
-from flask import Flask, render_template, Response, request, send_from_directory, redirect
+from flask import (
+    Flask,
+    render_template,
+    Response,
+    request,
+    send_from_directory,
+    redirect,
+)
 from urllib.parse import urlencode, quote_plus
 from lxml import html
 from lxml.etree import ElementBase, _ElementStringResult, _ElementUnicodeResult
@@ -21,9 +28,12 @@ USER_AGENT = os.environ.get("USER_AGENT")
 
 base_url = "https://annas-archive.org"
 
-languages = [{'name': country.name, 'code': country.alpha_2.lower()} for country in pycountry.countries]
-languages.sort(key=lambda lang: lang['name'])
-headers = {'User-Agent': USER_AGENT}
+languages = [
+    {"name": country.name, "code": country.alpha_2.lower()}
+    for country in pycountry.countries
+]
+languages.sort(key=lambda lang: lang["name"])
+headers = {"User-Agent": USER_AGENT}
 
 app = Flask(__name__)
 
@@ -33,19 +43,19 @@ for dir in (TEMP_DIR, OUTPUT_DIR):
         os.mkdir(dir)
 
 
-@app.route('/')
+@app.route("/")
 def index():
     files = os.listdir(OUTPUT_DIR)
 
-    return render_template('index.html', languages=languages, files=files)
+    return render_template("index.html", languages=languages, files=files)
 
 
-@app.route('/dl/<path:name>')
+@app.route("/dl/<path:name>")
 def dl(name):
     return send_from_directory(OUTPUT_DIR, name, as_attachment=True)
 
 
-@app.route('/delete/<path:name>')
+@app.route("/delete/<path:name>")
 def delete(name):
     path = os.path.join(OUTPUT_DIR, name)
     if os.path.exists(path):
@@ -54,18 +64,18 @@ def delete(name):
     return redirect("/")
 
 
-@app.route('/search', methods=["GET", "POST"])
+@app.route("/search", methods=["GET", "POST"])
 def search():
     query = get_param(request, "q")
     lang = get_param(request, "lang")
 
     if query is None:
-        return render_template('search.html', default_lang=lang, languages=languages)
+        return render_template("search.html", default_lang=lang, languages=languages)
 
-    args = {'q': query}
+    args = {"q": query}
 
     if lang is not None and lang:
-        args['lang'] = lang
+        args["lang"] = lang
 
     url = f"{base_url}/search?{urlencode(args)}"
     response = httpx.get(url, headers=headers)
@@ -74,10 +84,16 @@ def search():
 
     results = extract_search_results(response.text)
 
-    return render_template('search.html', query=query, default_lang=lang, results=results, languages=languages)
+    return render_template(
+        "search.html",
+        query=query,
+        default_lang=lang,
+        results=results,
+        languages=languages,
+    )
 
 
-@app.route('/download')
+@app.route("/download")
 def download():
     id = get_param(request, "id")
     title = get_param(request, "title")
@@ -118,7 +134,7 @@ def start_download(id, title, extension):
 def download_file(download_link, title, extension):
     r = httpx.get(download_link, timeout=100, follow_redirects=True, headers=headers)
     temp_file = os.path.join(TEMP_DIR, f"{title}.{extension}")
-    with open(temp_file, 'wb') as f:
+    with open(temp_file, "wb") as f:
         f.write(r.content)
 
     out_file = os.path.join(OUTPUT_DIR, f"{title}.{OUTPUT_FORMAT}")
@@ -141,18 +157,20 @@ def extract_download_link(id):
 
     doc = html.fromstring(response.text)
 
-    for link in doc.xpath('//div[@id="md5-panel-downloads"]/div/ul/li/a[contains(@class, "js-download-link")]'):
-        url = link.get('href')
-        if url[0] == '/':
+    for link in doc.xpath(
+        '//div[@id="md5-panel-downloads"]/div/ul/li/a[contains(@class, "js-download-link")]'
+    ):
+        url = link.get("href")
+        if url[0] == "/":
             url = base_url + url
-        link_text = ''.join(link.itertext())
-        if link_text == 'Bulk torrent downloads':
+        link_text = "".join(link.itertext())
+        if link_text == "Bulk torrent downloads":
             continue
 
         dl_url = None
-        if link_text == 'Libgen.li':
+        if link_text == "Libgen.li":
             dl_url = get_libgen_link(url, True)
-        elif link_text == 'Libgen.rs Fiction' and link_text == 'Libgen.rs Non-Fiction':
+        elif link_text == "Libgen.rs Fiction" and link_text == "Libgen.rs Non-Fiction":
             dl_url = get_libgen_link(url, False)
 
         if dl_url is not None:
@@ -167,8 +185,8 @@ def get_libgen_link(url: str, add_prefix: bool) -> str:
         return None
 
     doc = html.fromstring(resp.text)
-    scheme, _, host, _ = url.split('/', 3)
-    url = ''.join(doc.xpath('//a[h2[text()="GET"]]/@href'))
+    scheme, _, host, _ = url.split("/", 3)
+    url = "".join(doc.xpath('//a[h2[text()="GET"]]/@href'))
     if add_prefix:
         return f"{scheme}//{host}/{url}"
     else:
@@ -177,33 +195,39 @@ def get_libgen_link(url: str, add_prefix: bool) -> str:
 
 def extract_text(xpath_results, allow_none: bool = False):
     if isinstance(xpath_results, list):
-        result = ''
+        result = ""
         for e in xpath_results:
-            result = result + (extract_text(e) or '')
+            result = result + (extract_text(e) or "")
         return result.strip()
     if isinstance(xpath_results, ElementBase):
-        text: str = html.tostring(xpath_results, encoding='unicode', method='text', with_tail=False)
-        text = text.strip().replace('\n', ' ')
-        return ' '.join(text.split())
-    if isinstance(xpath_results, (_ElementStringResult, _ElementUnicodeResult, str, Number, bool)):
+        text: str = html.tostring(
+            xpath_results, encoding="unicode", method="text", with_tail=False
+        )
+        text = text.strip().replace("\n", " ")
+        return " ".join(text.split())
+    if isinstance(
+        xpath_results, (_ElementStringResult, _ElementUnicodeResult, str, Number, bool)
+    ):
         return str(xpath_results)
     if xpath_results is None and allow_none:
         return None
     if xpath_results is None and not allow_none:
-        raise ValueError('extract_text(None, allow_none=False)')
-    raise ValueError('unsupported type')
+        raise ValueError("extract_text(None, allow_none=False)")
+    raise ValueError("unsupported type")
 
 
 def get_result(result):
     item = {
-        'id': extract_text(result.xpath("./@href")).replace("/md5/", ""),
-        'title': extract_text(result.xpath(".//h3/text()[1]")),
-        'author': extract_text(result.xpath(".//div[contains(@class, 'text-sm')]")),
-        'description': extract_text(result.xpath(".//div[contains(@class, 'text-xs')]")),
+        "id": extract_text(result.xpath("./@href")).replace("/md5/", ""),
+        "title": extract_text(result.xpath(".//h3/text()[1]")),
+        "author": extract_text(result.xpath(".//div[contains(@class, 'text-sm')]")),
+        "description": extract_text(
+            result.xpath(".//div[contains(@class, 'text-xs')]")
+        ),
     }
 
-    item['extension'] = item['description'].split(', ')[1]
-    item['title_query'] = quote_plus(item['title'])
+    item["extension"] = item["description"].split(", ")[1]
+    item["title_query"] = quote_plus(item["title"])
 
     return item
 
@@ -216,7 +240,7 @@ def extract_search_results(html_plain):
         results.append(get_result(result))
 
     for item in doc.xpath('//main//div[contains(@class, "js-scroll-hidden")]'):
-        result = html.fromstring(item.xpath('./comment()')[0].text)
+        result = html.fromstring(item.xpath("./comment()")[0].text)
         results.append(get_result(result))
 
     return results
