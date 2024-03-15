@@ -239,8 +239,9 @@ def deletion_worker():
             time.sleep(1)
 
 
-if __name__ == "__main__":
-    if HOUR_DELAY > 0:
-        threading.Thread(target=deletion_worker).start()
+if FILE_LIFETIME_HOURS > 0:
+    threading.Thread(target=deletion_worker).start()
 
+
+if __name__ == "__main__":
     app.run()
